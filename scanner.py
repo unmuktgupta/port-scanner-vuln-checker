@@ -1,4 +1,11 @@
+import os
+
+import dotenv
 import nmap
+
+dotenv.load_dotenv()
+
+TEST_IP = os.getenv("TEST_IP")
 
 nm = nmap.PortScanner()
 
@@ -18,3 +25,7 @@ def scan_host(ip):
     except KeyError:
         return []
     return open_ports
+
+
+if __name__ == "__main__":
+    print(scan_host(TEST_IP))
