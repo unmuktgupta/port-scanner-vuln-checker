@@ -18,6 +18,3 @@ def scan_host(ip):
     except KeyError:
         return []
     return open_ports
-
-
-print(scan_host("192.168.1.15"))
