@@ -1,8 +1,14 @@
+import os
 import socket
 
+import dotenv
 import nmap
 
 from scanner import scan_host
+
+dotenv.load_dotenv()
+
+TEST_IP = os.getenv("TEST_IP")
 
 nm = nmap.PortScanner()
 
@@ -20,6 +26,7 @@ def get_banner(ip, port):
         return ""
 
 
-open_ports = scan_host("192.168.1.11")
-for port in open_ports:
-    print(get_banner("192.168.1.11", port["port"]))
+if __name__ == "__main__":
+    open_ports = scan_host(TEST_IP)
+    for port in open_ports:
+        print(get_banner(TEST_IP, port["port"]))
