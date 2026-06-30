@@ -11,7 +11,7 @@ nm = nmap.PortScanner()
 
 
 def scan_host(ip):
-    nm.scan(ip, arguments="-Pn -sT")
+    nm.scan(ip, arguments="-Pn -sT -sV")
     open_ports = []
     try:
         for port in nm[ip]["tcp"]:
