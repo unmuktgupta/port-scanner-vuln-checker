@@ -71,6 +71,8 @@ def convert_cpe(cpe):
 
 def vulns_from_cpe(cpe):
     vulns = []
+    if not cpe:
+        return []
     cpe = convert_cpe(cpe)
     keyword = keyword_search(cpe)
     result = get_cves(cpe)
