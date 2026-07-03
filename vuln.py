@@ -35,6 +35,8 @@ def get_cves(cpe):
 
 
 def get_cves_from_keyword(keyword):
+    if keyword == "":
+        return {"vulnerabilities": []}
     try:
         headers = {
             "apiKey": NVD_API_KEY,
@@ -59,6 +61,8 @@ def get_cves_from_keyword(keyword):
 
 def keyword_search(cpe):
     parts = cpe.split(":")
+    if parts[5] == "*":
+        return ""
     keywords = parts[3:5]
     return " ".join(keywords)
 
