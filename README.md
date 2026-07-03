@@ -71,9 +71,13 @@ streamlit run app.py
 
 Enter a target IP, hit **Scan**, and expand each port's results to see its banner and any known CVEs.
 
+<<<<<<< HEAD
 ![App screenshot placeholder](docs/screenshot-app.png)
 
 ![Scan results placeholder](docs/screenshot-results.png)
+=======
+<img width="1878" height="945" alt="image" src="https://github.com/user-attachments/assets/ab35488d-f953-4682-b0eb-d96e9d691041" />
+>>>>>>> 34bc4f832789634ac7c0dbe19f7fdc25e004725e
 
 ### CLI
 
