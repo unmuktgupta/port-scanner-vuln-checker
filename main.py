@@ -1,16 +1,21 @@
+from concurrent.futures import ThreadPoolExecutor
+
 from banner import get_banner
 from scanner import scan_host
 from vuln import vulns_from_cpe
 
 
+def process_port(ip, port):
+    banner = get_banner(ip, port["port"])
+    cves = vulns_from_cpe(port["cpe"])
+    return {"port": port["port"], "banner": banner, "cves": cves}
+
+
 def main(ip):
-    port_info = []
     open_ports = scan_host(ip)
-    for port in open_ports:
-        print(f"Scanning port {port['port']} ({port['name']})...")
-        banner = get_banner(ip, port["port"])
-        cves = vulns_from_cpe(port["cpe"])
-        port_info.append({"port": port["port"], "banner": banner, "cves": cves})
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        results = executor.map(process_port, [ip] * len(open_ports), open_ports)
+    port_info = list(results)
     return port_info
 
 
