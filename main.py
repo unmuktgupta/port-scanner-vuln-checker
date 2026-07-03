@@ -8,7 +8,7 @@ from vuln import vulns_from_cpe
 def process_port(ip, port):
     banner = get_banner(ip, port["port"])
     cves = vulns_from_cpe(port["cpe"])
-    return {"port": port["port"], "banner": banner, "cves": cves}
+    return {"port": port["port"], "name": port["name"], "banner": banner, "cves": cves}
 
 
 def main(ip):
