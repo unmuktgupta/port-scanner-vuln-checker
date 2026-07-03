@@ -10,7 +10,7 @@ Built as part of an individual cybersecurity project (Weeks 2–4): **"One Real 
 - **Banner grabbing** via raw TCP sockets, with graceful handling of timeouts, refused connections, and non-UTF-8 responses
 - **CVE lookup** via the NVD REST API 2.0:
   - Converts nmap's CPE 2.2 format (`cpe:/a:vendor:product:version`) to CPE 2.3 (`cpe:2.3:a:vendor:product:version:*:*:*:*:*:*:*`)
-  - Falls back to a keyword search (vendor + product) when an exact CPE match returns no results
+  - Falls back to a keyword search (vendor + product) when an exact CPE match returns no results — but only if nmap actually detected a version. A versionless CPE (e.g. `cpe:/a:mysql:mysql` with no version number) would otherwise produce an overly generic keyword search like "mysql mysql" that matches thousands of unrelated CVEs, so the fallback is skipped entirely in that case and 0 CVEs are returned instead of noise
   - Extracts CVE ID, description, and CVSS severity score, falling back across CVSS v3.1 → v3.0 → v2.0 depending on what's available per CVE
 - **Concurrent processing** — banner grabbing and CVE lookups run in parallel across ports using `ThreadPoolExecutor`, instead of sequentially
 - **Streamlit UI** — enter an IP, hit scan, and get an expandable per-port breakdown of banners and CVEs, color-coded by severity
@@ -71,13 +71,9 @@ streamlit run app.py
 
 Enter a target IP, hit **Scan**, and expand each port's results to see its banner and any known CVEs.
 
-<<<<<<< HEAD
 ![App screenshot placeholder](docs/screenshot-app.png)
 
 ![Scan results placeholder](docs/screenshot-results.png)
-=======
-<img width="1878" height="945" alt="image" src="https://github.com/user-attachments/assets/ab35488d-f953-4682-b0eb-d96e9d691041" />
->>>>>>> 34bc4f832789634ac7c0dbe19f7fdc25e004725e
 
 ### CLI
 
@@ -109,6 +105,7 @@ python vuln.py        # looks up CVEs for a sample CPE
 
 - Only the top 100 most common ports are scanned by default (configurable in `scanner.py` if you want full coverage — expect it to take significantly longer).
 - CVE matching quality depends on nmap's version detection accuracy and NVD's CPE dictionary coverage; obscure or very new services may return no CVEs even when vulnerabilities exist.
+- If nmap detects a service but can't determine its version, the tool deliberately reports 0 CVEs for that port rather than guessing — a keyword search on vendor/product alone (e.g. "mysql mysql") would otherwise match thousands of unrelated CVEs and produce misleading results.
 - The NVD API without an API key is heavily rate-limited; scans may be slow or partially fail without one.
 
 ## Roadmap / Stretch Goals
