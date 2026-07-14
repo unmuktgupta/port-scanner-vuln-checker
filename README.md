@@ -25,6 +25,9 @@ port-scanner-vuln-checker/
 ├── vuln.py         # NVD API integration — CPE conversion, CVE lookup, keyword fallback
 ├── main.py         # orchestrates scanner + banner + vuln with threaded execution
 ├── app.py          # Streamlit UI
+├── tests/          # pytest unit tests
+├── Dockerfile
+├── .dockerignore
 ├── requirements.txt
 └── README.md
 ```
@@ -55,9 +58,10 @@ Create a `.env` file in the project root:
 ```
 NVD_API_KEY=your_nvd_api_key_here
 TEST_IP=127.0.0.1
+APP_PASSWORD=choose_a_password
 ```
 
-`TEST_IP` is only used by each module's built-in `if __name__ == "__main__":` test block — the Streamlit app takes the target IP directly from the UI.
+`TEST_IP` is only used by each module's built-in `if __name__ == "__main__":` test block — the Streamlit app takes the target IP directly from the UI. `APP_PASSWORD` gates access to the Streamlit app itself (see Authentication below).
 
 > ⚠️ **Only scan hosts you own or have explicit permission to scan.** This tool is intended for use against your own lab environment (e.g. a local [Metasploitable 2](https://sourceforge.net/projects/metasploitable/) VM), not third-party systems.
 
@@ -71,8 +75,29 @@ streamlit run app.py
 
 Enter a target IP, hit **Scan**, and expand each port's results to see its banner and any known CVEs.
 
-<img width="1876" height="956" alt="image" src="https://github.com/user-attachments/assets/2d38bb3f-498d-41d5-b9c2-62afbcf45e20" />
+### Authentication
 
+The app is gated behind a single shared password (set as `APP_PASSWORD` in `.env`). This is intentionally basic — not a multi-user account system — since the tool is meant for personal/lab use, not public deployment. Enter the password once per session; it's remembered via Streamlit's session state for the rest of that browser session.
+
+### Running with Docker
+
+Build the image (installs Python, the `nmap` binary, and all dependencies inside a self-contained container):
+
+```bash
+docker build -t port-scanner .
+```
+
+Run it, passing your `.env` file so `NVD_API_KEY` and `APP_PASSWORD` are available inside the container:
+
+```bash
+docker run -p 8501:8501 --env-file .env port-scanner
+```
+
+Then open `http://localhost:8501`. If nmap can't complete scans properly from inside the container (some scan types need extra network privileges Docker restricts by default), add these capability flags:
+
+```bash
+docker run -p 8501:8501 --env-file .env --cap-add=NET_RAW --cap-add=NET_ADMIN port-scanner
+```
 
 ### CLI
 
@@ -100,6 +125,18 @@ python vuln.py        # looks up CVEs for a sample CPE
    - `vulns_from_cpe(cpe)` converts the CPE to 2.3 format, queries the NVD API for an exact match, and falls back to a keyword search if nothing is found.
 3. Results are combined into a single structure per port: `{"port", "name", "banner", "cves"}`, where each CVE is `{"id", "description", "score"}`.
 
+### CPE → CVE lookup, in detail
+
+**1. Where the CPE comes from.** The `-sV` flag tells nmap to actively fingerprint each open port's service and version, not just whether it's open. When it succeeds, it assigns a [CPE](https://nvd.nist.gov/products/cpe) (Common Platform Enumeration) string — a standardized name for a specific piece of software — e.g. `cpe:/a:vsftpd:vsftpd:2.3.4` (`a` = application, then vendor, product, version). `scan_host()` pulls this straight from nmap's result dict.
+
+**2. Converting the format.** NVD's API only accepts CPE **2.3** format — a fixed 11-field structure padded with wildcards, e.g. `cpe:2.3:a:vsftpd:vsftpd:2.3.4:*:*:*:*:*:*:*`. `convert_cpe()` swaps the `cpe:/` prefix for `cpe:2.3:` and pads the remaining fields (update, edition, language, sw_edition, target_sw, target_hw, other — none of which nmap provides) with `:*`.
+
+**3. Exact match lookup.** The converted CPE is sent to NVD as `?cpeName=...`. NVD maintains a mapping of every known CPE to the CVEs documented as affecting it, so this asks: "give me every CVE where this exact CPE appears in its affected-software list."
+
+**4. Keyword fallback.** Exact CPE matching frequently returns nothing — nmap's version string doesn't always match NVD's stored CPE exactly (e.g. vendor `vsftpd` vs. NVD's `vsftpd_project`), and NVD's CPE-to-CVE mapping isn't exhaustive for every version. When the exact match comes back empty, `keyword_search()` extracts just the vendor + product (deliberately dropping the version) and queries NVD's `keywordSearch` parameter instead — a fuzzy text match across CVE descriptions rather than exact CPE matching. This fallback only runs if nmap actually detected a real version in the first place (see Known Limitations below for why).
+
+**5. Extracting the result.** Once real CVE data comes back, `vulns_from_cpe()` pulls out each CVE's `id`, English `description`, and severity score — checking CVSS v3.1 first, then v3.0, then v2.0, since not every CVE has all three populated, falling back to `"N/A"` if none exist.
+
 ## Known Limitations
 
 - Only the top 100 most common ports are scanned by default (configurable in `scanner.py` if you want full coverage — expect it to take significantly longer).
@@ -107,12 +144,6 @@ python vuln.py        # looks up CVEs for a sample CPE
 - If nmap detects a service but can't determine its version, the tool deliberately reports 0 CVEs for that port rather than guessing — a keyword search on vendor/product alone (e.g. "mysql mysql") would otherwise match thousands of unrelated CVEs and produce misleading results.
 - The NVD API without an API key is heavily rate-limited; scans may be slow or partially fail without one.
 
-## Roadmap / Stretch Goals
-
-- [ ] Dockerize the app
-- [ ] Deploy the Streamlit app (cloud or local server)
-- [ ] Basic authentication
-- [ ] Unit tests
 
 ## Disclaimer
 
